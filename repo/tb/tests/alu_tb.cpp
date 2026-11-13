@@ -42,6 +42,23 @@ TEST_F(AluTestbench, WrapAroundTest)
     EXPECT_EQ(top->ALUout, 0u); // 0xFFFFFFFF + 1 wraps round to 0
 }
 
+TEST_F(AluTestbench, EqTest)
+{
+    top->ALUctrl = 0;
+
+    // Case 1: identical operands
+    top->ALUop1 = 0xFFFFFFFF;
+    top->ALUop2 = 0xFFFFFFFF;
+    top->eval();
+    EXPECT_EQ(top->EQ, 1);
+
+    // Case 2: make ALUop2 differ from ALUop1 in exactly one bit
+    top->ALUop2 = 0xFFFFFFFE;
+    top->eval();
+    EXPECT_EQ(top->EQ, 0);
+}
+
+
 int main(int argc, char **argv)
 {
     testing::InitGoogleTest(&argc, argv);
