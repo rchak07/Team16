@@ -17,7 +17,7 @@ Status: **keep** = unchanged · **changed** = renamed or widened · **new** = do
 | `op` | in | 7 | keep | `instr[6:0]` |
 | `funct3` | in | 3 | keep | `instr[14:12]`, now actually used |
 | `funct7b5` | in | 1 | changed | `instr[30]`, selects add/sub, srl/sra (currently `funct7`) |
-| *branch input* | in | ? | **decide** | see section 3 |
+| `BranchTaken` | in | 1 | new | from B's `branch_unit.sv`; 1 = take the branch |
 | `RegWrite` | out | 1 | keep | |
 | `ImmSrc` | out | 3 | changed | was 2 bits |
 | `ALUSrcA` | out | 1 | **decide** | only if `auipc` goes through the ALU (see section 3) |
@@ -57,6 +57,14 @@ Status: **keep** = unchanged · **changed** = renamed or widened · **new** = do
 | `WE3` | in | 1 | keep | ← `RegWrite` |
 | `RD1`, `RD2` | out | 32 | keep | |
 | `a0` | out | 32 | keep | debug/output for testbench and Vbuddy |
+
+**`branch_unit.sv`** (new)
+
+| Port | Dir | Width | Status | Notes |
+|---|---|---|---|---|
+| `RD1`, `RD2` | in | 32 | new | straight from the register file |
+| `funct3` | in | 3 | new | `instr[14:12]`, picks the branch type |
+| `BranchTaken` | out | 1 | new | → control unit |
 
 **`mux.sv`** (keep): 2-input. **`mux4.sv`** (new): 4-input, needed for `ResultSrc` and `PCSrc`.
 
@@ -113,7 +121,7 @@ C also owns: F1 in RV32I assembly, the `pdf.s` data file and its output check, a
 
 | # | Question | Who decides |
 |---|---|---|
-| 1 | **Branch decision:** ALU outputs flags (Zero, Negative, Carry, oVerflow) and Control uses them with `funct3`, *or* a comparator outputs one `BranchTaken` signal? | A + B |
+| 1 | ~~Branch decision: flags or one `BranchTaken` signal?~~ **Decided: one `BranchTaken` from `branch_unit.sv` (B).** beq, bne, blt/bge signed, bltu/bgeu unsigned; unused funct3 never taken. Keeps the ALU unchanged. | A + B |
 | 2 | ~~Does data memory receive `funct3`?~~ **Decided: yes.** One 3-bit signal to carry through the pipeline, and it keeps the work out of A's package. | D |
 | 3 | **`lui` / `auipc` path:** (a) `lui` passes ImmExt through the result mux, and `auipc` uses a new `ALUSrcA` mux (PC into the ALU); *or* (b) `auipc` reuses C's `PCTarget` through the result mux, and `lui` passes SrcB through the ALU. | A (with B, C, D) |
 | 4 | Does F1 need a trigger input on `top.sv` (Vbuddy button, as in Lab 3)? | C + D |
