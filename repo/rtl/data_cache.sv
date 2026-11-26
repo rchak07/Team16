@@ -61,23 +61,6 @@ module data_cache #(
     assign hit1 = valid1[index] && (tag1[index] == tag);
     assign hit = hit0 || hit1;
 
-    // reset empties the cache
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            for (int i = 0; i < SETS; i++) begin
-                valid0[i] <= 1'b0;
-                valid1[i] <= 1'b0;
-                lru[i] <= 1'b0;
-            end
-        end else if (Memwrite && hit) begin
-            if (hit0){
-                data0[index] <= newline;
-            }
-            else{
-                data1[index] <= newline;
-            }
-    end
-
     // read path: line -> word -> byte/half -> RD
     logic [127:0] line;
     assign line = hit0 ? data0[index] : data1[index];
@@ -109,10 +92,26 @@ module data_cache #(
         newline = line;
         case (funct3)
             3'b000: newline[offset*8 +: 8] = WD[7:0]; // sb
-            3'b001: newline[offset*16 +: 16] = WD[15:0]; // sh
-            3'b010: newline[offset*32 +: 32] = WD; // sw
+            3'b001: newline[offset[3:1]*16 +: 16] = WD[15:0]; // sh
+            3'b010: newline[offset[3:2]*32 +: 32] = WD; // sw
             default: ;
         endcase
+    end
+
+    // reset empties the cache, a store hit updates the line
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            for (int i = 0; i < SETS; i++) begin
+                valid0[i] <= 1'b0;
+                valid1[i] <= 1'b0;
+                lru[i] <= 1'b0;
+            end
+        end else if (MemWrite && hit) begin
+            if (hit0)
+                data0[index] <= newline;
+            else
+                data1[index] <= newline;
+        end
     end
 
     // placeholders until later
@@ -123,7 +122,5 @@ module data_cache #(
     assign WriteAddr   = 32'b0;
     assign WriteData   = 32'b0;
     assign WriteFunct3 = 3'b0;
-
-
 
 endmodule
