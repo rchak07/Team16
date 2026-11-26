@@ -72,8 +72,31 @@ module data_cache #(
         end
     end
 
+    // read path: line -> word -> byte/half -> RD
+    logic [127:0] line;
+    assign line = hit0 ? data0[index] : data1[index];
+
+    logic [31:0] word;
+    assign word = line[offset[3:2]*32 +: 32];
+
+    logic [7:0] rbyte;
+    assign rbyte = word[offset[1:0]*8 +: 8];
+
+    logic [15:0] rhalf;
+    assign rhalf = word[offset[1]*16 +: 16];      
+
+    always_comb begin
+        case (funct3)
+            3'b000: RD = {{24{rbyte[7]}}, rbyte}; // lb
+            3'b001: RD = {{16{rhalf[15]}}, rhalf}; // lh
+            3'b010: RD = word; // lw 
+            3'b100: RD = {24'b0, rbyte}; // lbu
+            3'b101: RD = {16'b0, rhalf}; // lhu                              
+            default: RD = 32'b0;
+        endcase
+    end
+
     // placeholders until later
-    assign RD          = 32'b0;
     assign MemBusy     = 1'b0;
     assign ReadReq     = 1'b0;
     assign ReadAddr    = 32'b0;
@@ -81,5 +104,7 @@ module data_cache #(
     assign WriteAddr   = 32'b0;
     assign WriteData   = 32'b0;
     assign WriteFunct3 = 3'b0;
+
+
 
 endmodule
