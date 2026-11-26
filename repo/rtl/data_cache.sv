@@ -52,6 +52,15 @@ module data_cache #(
     // which way to replace next
     logic lru [SETS-1:0];
 
+    logic hit0;
+    logic hit1; 
+    logic hit;
+
+    // hit if either way holds this address
+    assign hit0 = valid0[index] && (tag0[index] == tag);
+    assign hit1 = valid1[index] && (tag1[index] == tag);
+    assign hit = hit0 || hit1;
+
     // reset empties the cache
     always_ff @(posedge clk) begin
         if (rst) begin
