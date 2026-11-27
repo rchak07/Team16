@@ -63,7 +63,7 @@ module data_cache #(
     // miss path: ask for the line, stall until it arrives
     assign miss = MemRead && !hit;
     assign missAddr = {A[31:4], 4'b0000}; // line address
-    assign MemBusy = miss;
+    assign MemBusy = miss || (WriteReq && !WriteDone);
 
     // fill an empty way first, else the least recently used one
     assign fillWay = !valid0[index] ? 1'b0 : !valid1[index] ? 1'b1 : lru[index];
