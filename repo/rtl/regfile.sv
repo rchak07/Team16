@@ -18,8 +18,14 @@ module regfile #(
             registers[i] = 32'b0;
         end
     end
-    assign RD1 = registers[A1];
-    assign RD2 = registers[A2];
+    
+    always_comb begin
+        if(WE3 == 1 && A3 != 0 && A3 == A1) RD1 = WD3;
+        else RD1 = registers[A1];
+        if(WE3 == 1 && A3 != 0 && A3 == A2) RD2 = WD3;
+        else RD2 = registers[A2];
+    end
+
     assign a0 = registers[10];
 
     always_ff @(posedge clk) begin
