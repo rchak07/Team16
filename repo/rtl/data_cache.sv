@@ -14,11 +14,12 @@ module data_cache #(
     output logic [31:0] RD,
     output logic MemBusy, // 1 while an access hasn't finished
 
-    // memory side (to main_mem)
-    output logic ReadReq, // ask main_mem for a line (load miss)
-    output logic [31:0] ReadAddr, // line address, bottom 4 bits 0
-    input logic ReadDone,
-    input logic [127:0] ReadLine,
+    // memory side (to refill controller)
+    output logic miss, // load missed, fetch the line
+    output logic [31:0] missAddr, // line address, bottom 4 bits 0
+    output logic fillWay, // which way the new line goes in
+    input logic fillEn,
+    input logic [127:0] fillLine,
     output logic WriteReq, // write-through store
     output logic [31:0] WriteAddr,
     output logic [31:0] WriteData,
@@ -116,11 +117,12 @@ module data_cache #(
 
     // placeholders until later
     assign MemBusy     = 1'b0;
-    assign ReadReq     = 1'b0;
-    assign ReadAddr    = 32'b0;
+    assign miss        = 1'b0;
+    assign missAddr    = 32'b0;
     assign WriteReq    = 1'b0;
     assign WriteAddr   = 32'b0;
     assign WriteData   = 32'b0;
     assign WriteFunct3 = 3'b0;
+    assign fillWay     = 1'b0;
 
 endmodule
