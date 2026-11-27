@@ -61,7 +61,7 @@
   <text x="56" y="228" class="sig">next PC</text>
   <rect x="74" y="256" width="54" height="40" rx="4" class="C"/>
   <text x="101.0" y="281" class="ttl" text-anchor="middle">PC</text>
-  <text x="101" y="311" class="sig" text-anchor="middle">en: StallF</text>
+  <text x="101" y="311" class="sig" text-anchor="middle">en: ~StallF</text>
   <rect x="158" y="236" width="94" height="80" rx="4" class="G"/>
   <text x="205.0" y="270" class="ttl" text-anchor="middle">Instruction</text>
   <text x="205.0" y="286" class="ttl" text-anchor="middle">Memory</text>

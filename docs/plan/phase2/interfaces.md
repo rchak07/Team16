@@ -64,7 +64,7 @@ Enables and clears come from the hazard unit (section 3):
 | `StallF`, `StallD`, `StallE`, `StallM` | out | 1 | hold PC / IF/ID / ID/EX / EX/MEM |
 | `FlushD`, `FlushE`, `FlushW` | out | 1 | clear IF/ID / ID/EX / MEM/WB |
 
-**Forwarding muxes (B, in EX).** `ForwardAE` selects the source of `SrcAE`, `ForwardBE` the source of the forwarded `RD2E`. That forwarded value feeds the `ALUSrc` mux (`SrcBE`), `WriteDataE` (store data) and the branch unit.
+**Forwarding muxes (B, in EX).** Wire the selected register operands to `held_operands.ForwardedAE` and `ForwardedBE`, before the PC/immediate selects. Connect `clk`, `rst` and `StallE`. Use its outputs `OperandAE` and `OperandBE` for the branch comparison and the register inputs to both ALU source muxes. `OperandBE` also supplies store data. Both operands pass straight through during normal execution. The first cache-wait edge saves them so that a value forwarded from WB survives the WB bubble until EX advances.
 
 **Rules**
 
@@ -72,11 +72,13 @@ Enables and clears come from the hazard unit (section 3):
 - **Load-use:** `MemReadE && RdE != 0 && (RdE == Rs1D || RdE == Rs2D)` → `StallF = StallD = 1`, `FlushE = 1`. It may stall when the instruction in ID does not really read `rs2`. That costs speed, not correctness.
 - **Mispredict:** `MispredictE` → `FlushD = FlushE = 1`.
 - **Memory stall:** `MemBusyM` → `StallF = StallD = StallE = StallM = 1` and `FlushW = 1` (the instruction in MEM has not finished, so WB gets a bubble).
-- **Priority: `MemBusyM` > `MispredictE` > load-use.** While `MemBusyM` is high no flush takes effect and the branch in EX waits with everything else. `MispredictE` cancels a load-use stall in the same cycle.
+- **Priority: `MemBusyM` > `MispredictE` > load-use.** While `MemBusyM` is high, keep `FlushD` and `FlushE` low and `FlushW` high. The branch stays in EX until the PC can accept its redirect. `MispredictE` cancels a load-use stall in the same cycle.
 
 ## 4. Mispredict and redirect (A, in EX) and `pc_top` (C, in IF)
 
 **In EX**
+
+Instantiate `redirect_unit` with the stage-suffixed signals below, plus `MemBusyM`. Its `UpdateEn` output connects to the predictor in section 6. With prediction disabled, tie `PredTakenE` and `PredTargetE` low.
 
 ```
 PCTargetE    = PCE + ImmExtE                                       // adder in EX (B), moved here from pc_top
@@ -144,7 +146,7 @@ An instruction that was predicted taken but is not a taken jump or branch (a tab
 | `PCF` | in | 32 | fetch address |
 | `PredTakenF` | out | 1 | |
 | `PredTargetF` | out | 32 | |
-| `UpdateEn` | in | 1 | `BranchE \| JumpE` (`jalr` is not predicted) |
+| `UpdateEn` | in | 1 | `BranchE \| JumpE` when EX advances (`!MemBusyM`). A held branch trains once, on release. JALR never trains the predictor. |
 | `UpdatePC` | in | 32 | `PCE` |
 | `UpdateTaken` | in | 1 | `TakenE` |
 | `UpdateTarget` | in | 32 | `PCTargetE` |
