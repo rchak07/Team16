@@ -1,7 +1,6 @@
 // Data cache: 2-way set associative, sits between pipeline and main_mem
 module data_cache #(
-    parameter SETS = 64,
-    parameter LINE_BYTES = 16
+    parameter INDEX_BITS = 6 // 2^6 = 64 sets
 )(
     // pipeline side
     input logic clk,
@@ -28,27 +27,26 @@ module data_cache #(
 );
 
     localparam ADDR_BITS = 17; // memory is 0x00000 to 0x1FFFF
-    localparam OFFSET_BITS = $clog2(LINE_BYTES); // 4
-    localparam INDEX_BITS  = $clog2(SETS); // 6                    
-    localparam TAG_BITS    = ADDR_BITS - INDEX_BITS - OFFSET_BITS; // 7   
+    localparam SETS = 2**INDEX_BITS; // 64
+    localparam TAG_BITS = ADDR_BITS - INDEX_BITS - 4; // 7
 
     // address split: tag | index | offset
-    logic [OFFSET_BITS-1:0] offset; 
-    assign offset = A[OFFSET_BITS-1:0]; // A[3:0]
+    logic [3:0] offset;
+    assign offset = A[3:0];
 
     logic [INDEX_BITS-1:0] index;
-    assign index = A[OFFSET_BITS+INDEX_BITS-1:OFFSET_BITS]; // A[9:4]
+    assign index = A[INDEX_BITS+3:4]; // A[9:4]
 
     logic [TAG_BITS-1:0] tag;
-    assign tag = A[ADDR_BITS-1:OFFSET_BITS+INDEX_BITS]; // A[16:10]
+    assign tag = A[ADDR_BITS-1:INDEX_BITS+4]; // A[16:10]
 
     // 2 ways each with a valid bit, tag and line per set
     logic valid0 [SETS-1:0];
     logic valid1 [SETS-1:0];
     logic [TAG_BITS-1:0] tag0 [SETS-1:0];
     logic [TAG_BITS-1:0] tag1 [SETS-1:0];
-    logic [LINE_BYTES*8-1:0] data0 [SETS-1:0];
-    logic [LINE_BYTES*8-1:0] data1 [SETS-1:0];
+    logic [127:0] data0 [SETS-1:0];
+    logic [127:0] data1 [SETS-1:0];
 
     // which way to replace next
     logic lru [SETS-1:0];
@@ -95,7 +93,7 @@ module data_cache #(
             3'b000: newline[offset*8 +: 8] = WD[7:0]; // sb
             3'b001: newline[offset[3:1]*16 +: 16] = WD[15:0]; // sh
             3'b010: newline[offset[3:2]*32 +: 32] = WD; // sw
-            default: ;
+            default: newline = line; // not a store, line unchanged
         endcase
     end
 
