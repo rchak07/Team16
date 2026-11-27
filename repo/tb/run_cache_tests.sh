@@ -23,7 +23,7 @@ for bits in "$@"; do
     verilator --cc --exe --build -Wall --prefix Vdut --top-module data_cache \
         --Mdir "$build/idx$bits" "-GINDEX_BITS=$bits" \
         -CFLAGS "$cflags -DTEST_CACHE_INDEX_BITS=$bits" -LDFLAGS "$libs" \
-        "$here/../rtl/data_cache.sv" "$here/unit/data_cache_tb.cpp"
+        "$here/../rtl/data_cache.sv" "$here/unit/data_cache-reference_tb.cpp"
     "$build/idx$bits/Vdut" || status=1
 done
 exit "$status"
