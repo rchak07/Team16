@@ -37,7 +37,7 @@ module  main_mem #(
             ReadDone <= 1'b0;
         end
         else begin
-            ReadDone <= 1'b0; // ReadDone only high for one clock cycle (unless latency 0 or 1)
+            ReadDone <= 1'b0; // ReadDone only high for one clock cycle 
             case (busy)
                 1'b0: begin
                     count <= 4'h1;
