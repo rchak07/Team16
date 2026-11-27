@@ -16,7 +16,7 @@ logic [31:0] instr;
 // Control Signals
 logic [1:0] PCSrc;
 logic RegWrite;
-logic BranchTaken;
+logic BranchTaken, Branch, Jump, Jalr;
 logic ALUSrc;
 logic [2:0] ImmSrc;
 logic [3:0] ALUControl;
@@ -39,7 +39,12 @@ assign rd = instr[11:7];
 /* verilator lint_off UNUSED */
 logic [31:0] PCTarget_unused;
 logic Zero_unused;
+logic MemRead_unused;
 /* verilator lint_on UNUSED */
+
+// The single-cycle PC still uses its original three-way select.
+assign PCSrc[1] = Jalr;
+assign PCSrc[0] = Jump || (Branch && BranchTaken);
 
 pc_top #(.WIDTH(32)) pc_reg(
     .clk(clk),
@@ -62,11 +67,13 @@ control_unit control(
     .ALUControl(ALUControl),
     .ALUSrc(ALUSrc),
     .ImmSrc(ImmSrc),
-    .PCSrc(PCSrc),
+    .Branch(Branch),
+    .Jump(Jump),
+    .Jalr(Jalr),
+    .MemRead(MemRead_unused),
     .ALUSrcA(ALUSrcA),
     .MemWrite(MemWrite),
     .ResultSrc(ResultSrc),
-    .BranchTaken(BranchTaken),
     .op(instr[6:0]),
     .funct3(instr[14:12]),
     .funct7b5(instr[30])

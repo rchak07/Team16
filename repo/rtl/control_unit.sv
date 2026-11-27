@@ -2,14 +2,16 @@ module control_unit (
   input  logic [6:0] op,
   input  logic [2:0] funct3,
   input  logic       funct7b5,
-  input  logic       BranchTaken,
   output logic       RegWrite,
   output logic       ALUSrc,
   output logic       ALUSrcA,
   output logic [2:0] ImmSrc,
   output logic       MemWrite,
+  output logic       MemRead,
+  output logic       Branch,
+  output logic       Jump,
+  output logic       Jalr,
   output logic [1:0] ResultSrc,
-  output logic [1:0] PCSrc,
   output logic [3:0] ALUControl
 );
   localparam logic [6:0] OP_REG    = 7'b0110011;
@@ -26,7 +28,6 @@ module control_unit (
                          IMM_U = 3'd3, IMM_J = 3'd4;
   localparam logic [1:0] RESULT_ALU = 2'd0, RESULT_MEM = 2'd1,
                          RESULT_PC4 = 2'd2, RESULT_IMM = 2'd3;
-  localparam logic [1:0] PC_NEXT = 2'd0, PC_TARGET = 2'd1, PC_JALR = 2'd2;
 
   localparam logic [3:0] ALU_ADD  = 4'd0;
   localparam logic [3:0] ALU_SUB  = 4'd1;
@@ -52,7 +53,10 @@ module control_unit (
     ImmSrc = IMM_I;
     MemWrite = 1'b0;
     ResultSrc = RESULT_ALU;
-    PCSrc = PC_NEXT;
+    MemRead = 1'b0;
+    Branch = 1'b0;
+    Jump = 1'b0;
+    Jalr = 1'b0;
     ALUControl = ALU_ADD;
 
     unique case (op)
@@ -78,6 +82,7 @@ module control_unit (
         if (funct3 inside {3'b000, 3'b001, 3'b010, 3'b100, 3'b101}) begin
           ALUSrc = 1'b1;
           RegWrite = 1'b1;
+          MemRead = 1'b1;
           ResultSrc = RESULT_MEM;
         end
       end
@@ -92,21 +97,21 @@ module control_unit (
         if (funct3 inside {3'b000, 3'b001, 3'b100, 3'b101, 3'b110, 3'b111}) begin
           ImmSrc = IMM_B;
           ALUControl = ALU_SUB;
-          PCSrc = BranchTaken ? PC_TARGET : PC_NEXT;
+          Branch = 1'b1;
         end
       end
       OP_JAL: begin
         ImmSrc = IMM_J;
         RegWrite = 1'b1;
         ResultSrc = RESULT_PC4;
-        PCSrc = PC_TARGET;
+        Jump = 1'b1;
       end
       OP_JALR: begin
         if (funct3 == 3'b000) begin
           ALUSrc = 1'b1;
           RegWrite = 1'b1;
           ResultSrc = RESULT_PC4;
-          PCSrc = PC_JALR;
+          Jalr = 1'b1;
         end
       end
       OP_LUI: begin

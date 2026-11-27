@@ -1,7 +1,9 @@
 /*
  *  Review tests for Ahsan's control unit: checks the control signals for every
- *  instruction type, including taken and not-taken branches, jal, jalr, lui and auipc.
+ *  instruction type, including the branch and jump controls sent to the execute stage.
  */
+
+#include <initializer_list>
 
 #include "base_testbench.h"
 
@@ -10,12 +12,21 @@ unsigned int ticks = 0;
 class ControlUnitTestbench : public BaseTestbench
 {
 protected:
+    enum class Kind { Other, Load, Branch, Jal, Jalr };
+
+    void expectKind(Kind kind)
+    {
+        EXPECT_EQ(top->MemRead, kind == Kind::Load);
+        EXPECT_EQ(top->Branch, kind == Kind::Branch);
+        EXPECT_EQ(top->Jump, kind == Kind::Jal);
+        EXPECT_EQ(top->Jalr, kind == Kind::Jalr);
+    }
+
     void initializeInputs() override
     {
         top->op = 0;
         top->funct3 = 0;
         top->funct7b5 = 0;
-        top->BranchTaken = 0;
     }
 };
 
@@ -32,7 +43,7 @@ TEST_F(ControlUnitTestbench, AddSubTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0u);
 
     // sub: same switches, funct7b5 = 1 makes the ALU subtract
@@ -43,7 +54,7 @@ TEST_F(ControlUnitTestbench, AddSubTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 1u);
 }
 
@@ -61,7 +72,7 @@ TEST_F(ControlUnitTestbench, RTypeAluControlTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0111u);
 
     // slt (signed)
@@ -72,7 +83,7 @@ TEST_F(ControlUnitTestbench, RTypeAluControlTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0101u);
 
     // sltu (unsigned)
@@ -83,7 +94,7 @@ TEST_F(ControlUnitTestbench, RTypeAluControlTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0110u);
 
     // xor
@@ -94,7 +105,7 @@ TEST_F(ControlUnitTestbench, RTypeAluControlTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0100u);
 
     // srl: funct7b5 = 0
@@ -105,7 +116,7 @@ TEST_F(ControlUnitTestbench, RTypeAluControlTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b1000u);
 
     // sra: funct7b5 = 1 makes the shift arithmetic
@@ -117,7 +128,7 @@ TEST_F(ControlUnitTestbench, RTypeAluControlTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b1001u);
 
     // or
@@ -129,7 +140,7 @@ TEST_F(ControlUnitTestbench, RTypeAluControlTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0011u);
 
     // and
@@ -140,7 +151,7 @@ TEST_F(ControlUnitTestbench, RTypeAluControlTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0010u);
 }
 
@@ -159,7 +170,7 @@ TEST_F(ControlUnitTestbench, ITypeAluTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0000u);
 
     // slli
@@ -171,7 +182,7 @@ TEST_F(ControlUnitTestbench, ITypeAluTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0111u);
 
     // slti (signed)
@@ -183,7 +194,7 @@ TEST_F(ControlUnitTestbench, ITypeAluTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0101u);
 
     // sltiu (unsigned)
@@ -195,7 +206,7 @@ TEST_F(ControlUnitTestbench, ITypeAluTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0110u);
 
     // xori
@@ -207,7 +218,7 @@ TEST_F(ControlUnitTestbench, ITypeAluTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0100u);
 
     // srli: funct7b5 = 0
@@ -220,7 +231,7 @@ TEST_F(ControlUnitTestbench, ITypeAluTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b1000u);
 
     // srai: funct7b5 = 1 makes the shift arithmetic
@@ -232,7 +243,7 @@ TEST_F(ControlUnitTestbench, ITypeAluTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b1001u);
 
     // ori
@@ -245,7 +256,7 @@ TEST_F(ControlUnitTestbench, ITypeAluTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0011u);
 
     // andi
@@ -257,7 +268,7 @@ TEST_F(ControlUnitTestbench, ITypeAluTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0010u);
 }
 
@@ -275,7 +286,7 @@ TEST_F(ControlUnitTestbench, AddiNegativeImmediateStillAddsTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0b0000u);
 }
 
@@ -293,7 +304,7 @@ TEST_F(ControlUnitTestbench, LoadTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 1u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Load);
     EXPECT_EQ(top->ALUControl, 0u);
 
     // lh
@@ -305,7 +316,7 @@ TEST_F(ControlUnitTestbench, LoadTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 1u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Load);
     EXPECT_EQ(top->ALUControl, 0u);
 
     // lw
@@ -317,7 +328,7 @@ TEST_F(ControlUnitTestbench, LoadTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 1u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Load);
     EXPECT_EQ(top->ALUControl, 0u);
 
     // lbu (unsigned)
@@ -329,7 +340,7 @@ TEST_F(ControlUnitTestbench, LoadTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 1u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Load);
     EXPECT_EQ(top->ALUControl, 0u);
 
     // lhu (unsigned)
@@ -341,7 +352,7 @@ TEST_F(ControlUnitTestbench, LoadTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 1u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Load);
     EXPECT_EQ(top->ALUControl, 0u);
 }
 
@@ -358,7 +369,7 @@ TEST_F(ControlUnitTestbench, StoreTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->ImmSrc, 1u);
     EXPECT_EQ(top->MemWrite, 1u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0u);
 
     // sh
@@ -369,7 +380,7 @@ TEST_F(ControlUnitTestbench, StoreTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->ImmSrc, 1u);
     EXPECT_EQ(top->MemWrite, 1u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0u);
 
     // sw
@@ -380,15 +391,14 @@ TEST_F(ControlUnitTestbench, StoreTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->ImmSrc, 1u);
     EXPECT_EQ(top->MemWrite, 1u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0u);
 }
 
-// taken branch: jump to target (PCSrc = 1), no register or memory write
-TEST_F(ControlUnitTestbench, BranchTakenTest)
+// Decode labels each supported branch; the comparison happens in EX.
+TEST_F(ControlUnitTestbench, ConditionalBranchTest)
 {
     top->op = 0b1100011;
-    top->BranchTaken = 1;
 
     // beq
     top->funct3 = 0b000;
@@ -398,7 +408,7 @@ TEST_F(ControlUnitTestbench, BranchTakenTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->ImmSrc, 2u);
     EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 1u);
+    expectKind(Kind::Branch);
 
     // bne
     top->funct3 = 0b001;
@@ -408,7 +418,7 @@ TEST_F(ControlUnitTestbench, BranchTakenTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->ImmSrc, 2u);
     EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 1u);
+    expectKind(Kind::Branch);
 
     // blt
     top->funct3 = 0b100;
@@ -418,7 +428,7 @@ TEST_F(ControlUnitTestbench, BranchTakenTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->ImmSrc, 2u);
     EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 1u);
+    expectKind(Kind::Branch);
 
     // bge
     top->funct3 = 0b101;
@@ -428,7 +438,7 @@ TEST_F(ControlUnitTestbench, BranchTakenTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->ImmSrc, 2u);
     EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 1u);
+    expectKind(Kind::Branch);
 
     // bltu (unsigned)
     top->funct3 = 0b110;
@@ -438,7 +448,7 @@ TEST_F(ControlUnitTestbench, BranchTakenTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->ImmSrc, 2u);
     EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 1u);
+    expectKind(Kind::Branch);
 
     // bgeu (unsigned)
     top->funct3 = 0b111;
@@ -448,112 +458,35 @@ TEST_F(ControlUnitTestbench, BranchTakenTest)
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->ImmSrc, 2u);
     EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 1u);
-
-    // funct3 = 010 is not a branch, no jump even with BranchTaken = 1
-    top->funct3 = 0b010;
-    top->eval();
-    EXPECT_EQ(top->RegWrite, 0u);
-    EXPECT_EQ(top->ALUSrc, 0u);
-    EXPECT_EQ(top->ALUSrcA, 0u);
-    EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Branch);
 }
 
-// branch not taken: carry on to next instruction (PCSrc = 0)
-TEST_F(ControlUnitTestbench, BranchNotTakenTest)
+TEST_F(ControlUnitTestbench, ReservedBranchTest)
 {
     top->op = 0b1100011;
-    top->BranchTaken = 0;
-
-    // beq
-    top->funct3 = 0b000;
-    top->eval();
-    EXPECT_EQ(top->RegWrite, 0u);
-    EXPECT_EQ(top->ALUSrc, 0u);
-    EXPECT_EQ(top->ALUSrcA, 0u);
-    EXPECT_EQ(top->ImmSrc, 2u);
-    EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
-
-    // bne
-    top->funct3 = 0b001;
-    top->eval();
-    EXPECT_EQ(top->RegWrite, 0u);
-    EXPECT_EQ(top->ALUSrc, 0u);
-    EXPECT_EQ(top->ALUSrcA, 0u);
-    EXPECT_EQ(top->ImmSrc, 2u);
-    EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
-
-    // blt
-    top->funct3 = 0b100;
-    top->eval();
-    EXPECT_EQ(top->RegWrite, 0u);
-    EXPECT_EQ(top->ALUSrc, 0u);
-    EXPECT_EQ(top->ALUSrcA, 0u);
-    EXPECT_EQ(top->ImmSrc, 2u);
-    EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
-
-    // bge
-    top->funct3 = 0b101;
-    top->eval();
-    EXPECT_EQ(top->RegWrite, 0u);
-    EXPECT_EQ(top->ALUSrc, 0u);
-    EXPECT_EQ(top->ALUSrcA, 0u);
-    EXPECT_EQ(top->ImmSrc, 2u);
-    EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
-
-    // bltu (unsigned)
-    top->funct3 = 0b110;
-    top->eval();
-    EXPECT_EQ(top->RegWrite, 0u);
-    EXPECT_EQ(top->ALUSrc, 0u);
-    EXPECT_EQ(top->ALUSrcA, 0u);
-    EXPECT_EQ(top->ImmSrc, 2u);
-    EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
-
-    // bgeu (unsigned)
-    top->funct3 = 0b111;
-    top->eval();
-    EXPECT_EQ(top->RegWrite, 0u);
-    EXPECT_EQ(top->ALUSrc, 0u);
-    EXPECT_EQ(top->ALUSrcA, 0u);
-    EXPECT_EQ(top->ImmSrc, 2u);
-    EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    for (unsigned int funct3 : {0b010u, 0b011u}) {
+        top->funct3 = funct3;
+        top->eval();
+        expectKind(Kind::Other);
+        EXPECT_EQ(top->RegWrite, 0u);
+        EXPECT_EQ(top->MemWrite, 0u);
+    }
 }
 
-// jal: always jumps (PCSrc = 1) and saves PC + 4, BranchTaken is ignored
+// jal writes the PC + 4 link and requests an unconditional jump in EX
 TEST_F(ControlUnitTestbench, JalTest)
 {
     top->op = 0b1101111;
-
-    // BranchTaken = 0 must not stop the jump
-    top->BranchTaken = 0;
     top->eval();
     EXPECT_EQ(top->RegWrite, 1u);
     EXPECT_EQ(top->ALUSrcA, 0u);
     EXPECT_EQ(top->ImmSrc, 4u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 2u);
-    EXPECT_EQ(top->PCSrc, 1u);
-
-    // BranchTaken = 1 changes nothing
-    top->BranchTaken = 1;
-    top->eval();
-    EXPECT_EQ(top->RegWrite, 1u);
-    EXPECT_EQ(top->ALUSrcA, 0u);
-    EXPECT_EQ(top->ImmSrc, 4u);
-    EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->ResultSrc, 2u);
-    EXPECT_EQ(top->PCSrc, 1u);
+    expectKind(Kind::Jal);
 }
 
-// jalr: jumps to register + immediate from the ALU (PCSrc = 2), saves PC + 4
+// jalr uses register + immediate and writes PC + 4
 TEST_F(ControlUnitTestbench, JalrTest)
 {
     top->op = 0b1100111;
@@ -567,7 +500,7 @@ TEST_F(ControlUnitTestbench, JalrTest)
     EXPECT_EQ(top->ImmSrc, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 2u);
-    EXPECT_EQ(top->PCSrc, 2u);
+    expectKind(Kind::Jalr);
     EXPECT_EQ(top->ALUControl, 0u);
 }
 
@@ -581,7 +514,7 @@ TEST_F(ControlUnitTestbench, LuiTest)
     EXPECT_EQ(top->ImmSrc, 3u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 3u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
 }
 
 // auipc: ALU adds the PC (ALUSrcA = 1) and the U-type immediate 
@@ -596,38 +529,20 @@ TEST_F(ControlUnitTestbench, AuipcTest)
     EXPECT_EQ(top->ImmSrc, 3u);
     EXPECT_EQ(top->MemWrite, 0u);
     EXPECT_EQ(top->ResultSrc, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
     EXPECT_EQ(top->ALUControl, 0u);
 }
 
-// BranchTaken only matters for branches, other instructions never jump 
-TEST_F(ControlUnitTestbench, NonBranchIgnoresBranchTakenTest)
+TEST_F(ControlUnitTestbench, ReservedMemoryAndJalrInstructionsHaveNoSideEffects)
 {
-    top->BranchTaken = 1;
-
-    // add
-    top->op = 0b0110011;
-    top->funct3 = 0b000;
-    top->eval();
-    EXPECT_EQ(top->PCSrc, 0u);
-
-    // addi
-    top->op = 0b0010011;
-    top->funct3 = 0b000;
-    top->eval();
-    EXPECT_EQ(top->PCSrc, 0u);
-
-    // lw
-    top->op = 0b0000011;
-    top->funct3 = 0b010;
-    top->eval();
-    EXPECT_EQ(top->PCSrc, 0u);
-
-    // sw
-    top->op = 0b0100011;
-    top->funct3 = 0b010;
-    top->eval();
-    EXPECT_EQ(top->PCSrc, 0u);
+    for (unsigned int op : {0b0000011u, 0b0100011u, 0b1100111u}) {
+        top->op = op;
+        top->funct3 = 0b111;
+        top->eval();
+        expectKind(Kind::Other);
+        EXPECT_EQ(top->RegWrite, 0u);
+        EXPECT_EQ(top->MemWrite, 0u);
+    }
 }
 
 // unknown opcode does nothing: no register write, no memory write, no jump
@@ -638,14 +553,14 @@ TEST_F(ControlUnitTestbench, UnknownOpcodeTest)
     top->eval();
     EXPECT_EQ(top->RegWrite, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
 
     // all ones is not valid either
     top->op = 0b1111111;
     top->eval();
     EXPECT_EQ(top->RegWrite, 0u);
     EXPECT_EQ(top->MemWrite, 0u);
-    EXPECT_EQ(top->PCSrc, 0u);
+    expectKind(Kind::Other);
 }
 
 int main(int argc, char **argv)
