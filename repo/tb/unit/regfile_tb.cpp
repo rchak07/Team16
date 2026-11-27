@@ -135,22 +135,23 @@ TEST_F(RegfileTestbench, AllRegistersWritableTest)
     EXPECT_EQ(top->RD1, 0u);
 }
 
-// a read in the same cycle as a write sees old value until clock edge
-TEST_F(RegfileTestbench, WriteAndReadSameCycleTest)
+// write-through: a read of the register being written sees WD3 immediately
+TEST_F(RegfileTestbench, WriteThroughSameCycleTest)
 {
     top->A3 = 5;
     top->WD3 = 10;
     top->WE3 = 1;
-    runSimulation(1);
+    runSimulation(1);     // x5 = 10 stored
 
-    // write of 20 set up but no clock edge, so x5 still reads 10
     top->A1 = 5;
     top->WD3 = 20;
     top->eval();
-    EXPECT_EQ(top->RD1, 10u);
+    EXPECT_EQ(top->RD1, 20u);   // bypassed, before the clock edge 
 
     runSimulation(1);
-    EXPECT_EQ(top->RD1, 20u);
+    top->WE3 = 0;
+    top->eval();
+    EXPECT_EQ(top->RD1, 20u);  // read from the array, now it is not bypassed
 }
 
 // a0 shows x10 and only x10
