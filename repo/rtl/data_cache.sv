@@ -40,7 +40,7 @@ module data_cache #(
     logic [TAG_BITS-1:0] tag;
     assign tag = A[ADDR_BITS-1:INDEX_BITS+4]; // A[16:10]
 
-    // 2 ways each with a valid bit, tag and line per set
+    // 2 ways each with a valid bit, tag and line (block) per set
     logic valid0 [SETS-1:0];
     logic valid1 [SETS-1:0];
     logic [TAG_BITS-1:0] tag0 [SETS-1:0];
@@ -59,6 +59,14 @@ module data_cache #(
     assign hit0 = valid0[index] && (tag0[index] == tag);
     assign hit1 = valid1[index] && (tag1[index] == tag);
     assign hit = hit0 || hit1;
+
+    // miss path: ask for the line, stall until it arrives
+    assign miss = MemRead && !hit;
+    assign missAddr = {A[31:4], 4'b0000}; // line address
+    assign MemBusy = miss;
+
+    // fill an empty way first, else the least recently used one
+    assign fillWay = !valid0[index] ? 1'b0 : !valid1[index] ? 1'b1 : lru[index];
 
     // read path: line -> word -> byte/half -> RD
     logic [127:0] line;
@@ -97,13 +105,23 @@ module data_cache #(
         endcase
     end
 
-    // reset empties the cache, a store hit updates the line
+    // reset empties the cache, a fill writes the new line and a store hit updates the line
     always_ff @(posedge clk) begin
         if (rst) begin
             for (int i = 0; i < SETS; i++) begin
                 valid0[i] <= 1'b0;
                 valid1[i] <= 1'b0;
                 lru[i] <= 1'b0;
+            end
+        end else if (fillEn) begin
+            if (fillWay == 1'b0) begin
+                valid0[index] <= 1'b1;
+                tag0[index] <= tag;
+                data0[index] <= fillLine;
+            end else begin
+                valid1[index] <= 1'b1;
+                tag1[index] <= tag;
+                data1[index] <= fillLine;
             end
         end else if (MemWrite && hit) begin
             if (hit0)
@@ -114,13 +132,9 @@ module data_cache #(
     end
 
     // placeholders until later
-    assign MemBusy     = 1'b0;
-    assign miss        = 1'b0;
-    assign missAddr    = 32'b0;
     assign WriteReq    = 1'b0;
     assign WriteAddr   = 32'b0;
     assign WriteData   = 32'b0;
     assign WriteFunct3 = 3'b0;
-    assign fillWay     = 1'b0;
 
 endmodule
