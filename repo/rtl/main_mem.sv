@@ -5,12 +5,16 @@ module  main_mem #(
 )(
     input logic clk,
     input logic rst,
+    /*verilator lint_off UNUSED*/
     input logic [31:0] ReadAddr,
+    /*verilator lint_off UNUSED*/
     input logic ReadReq,
     output logic ReadDone,
     output logic [127:0] ReadLine, // 16 bytes is 128 bits as 1 byte = 8 bits
     input logic WriteReq,
+    /*verilator lint_off UNUSED*/
     input logic [31:0] WriteAddr,
+    /*verilator lint_off UNUSED*/
     input logic [31:0] WriteData,
     input logic [2:0] WriteFunct3,
     output logic WriteDone
