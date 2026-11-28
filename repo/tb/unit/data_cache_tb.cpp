@@ -259,6 +259,7 @@ TEST_F(DataCacheTestbench, LruReplaceTest)
 // 16: four words in one line, only the first misses
 TEST_F(DataCacheTestbench, SequentialWordsTest)
 {
+    latency = 6;
     load(0x10000, LW);
     EXPECT_GT(busy, 0);
     load(0x10004, LW);
