@@ -7,6 +7,7 @@ Memory before each test (little-endian, byte 0 is the lowest):
 | 0x10000 | 0x12345678 |
 | 0x10004 | 0x8000FFFE |
 | 0x10400 | 0xCAFEF00D (same index as 0x10000, different tag) |
+| 0x10800 | 0x0BADF00D (same index again, third tag) |
 
 | # | Case | Do | Expect |
 |---|---|---|---|
@@ -24,3 +25,5 @@ Memory before each test (little-endian, byte 0 is the lowest):
 | 12 | sb hit | after lw 0x10000: sb 0xAA to 0x10001, lw 0x10000 | RD = 0x1234AA78 |
 | 13 | sh hit | after lw 0x10000: sh 0xBBBB to 0x10002, lw 0x10000 | RD = 0xBBBB5678 |
 | 14 | Idle | MemRead = 0, MemWrite = 0 | MemBusy = 0 |
+| 15 | LRU replaces the older way | lw 0x10000, lw 0x10400, lw 0x10000 again, then lw 0x10800 | 0x10800 replaces 0x10400, so 0x10000 still hits and 0x10400 misses |
+| 16 | Sequential words | lw 0x10000, 0x10004, 0x10008, 0x1000C | 1 miss, then 3 hits |

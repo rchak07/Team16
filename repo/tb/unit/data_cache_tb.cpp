@@ -41,6 +41,7 @@ protected:
         mem[0x10000] = 0x12345678;
         mem[0x10004] = 0x8000FFFE;
         mem[0x10400] = 0xCAFEF00D;
+        mem[0x10800] = 0x0BADF00D;
 
         // empty the cache
         top->rst = 1;
@@ -209,4 +210,31 @@ TEST_F(DataCacheTestbench, IdleNotBusyTest)
     top->A = 0x10000;
     top->eval();
     EXPECT_EQ(top->MemBusy, 0);
+}
+
+// 15: a third line replaces the least recently used way
+TEST_F(DataCacheTestbench, LruReplaceTest)
+{
+    load(0x10000, LW);
+    load(0x10400, LW);
+    load(0x10000, LW); // 0x10400 is now the older one
+    EXPECT_EQ(load(0x10800, LW), 0x0BADF00Du);
+
+    EXPECT_EQ(load(0x10000, LW), 0x12345678u);
+    EXPECT_EQ(busy, 0); // kept
+    load(0x10400, LW);
+    EXPECT_GT(busy, 0); // replaced so it misses again
+}
+
+// 16: four words in one line, only the first misses
+TEST_F(DataCacheTestbench, SequentialWordsTest)
+{
+    load(0x10000, LW);
+    EXPECT_GT(busy, 0);
+    load(0x10004, LW);
+    EXPECT_EQ(busy, 0);
+    load(0x10008, LW);
+    EXPECT_EQ(busy, 0);
+    load(0x1000C, LW);
+    EXPECT_EQ(busy, 0);
 }
