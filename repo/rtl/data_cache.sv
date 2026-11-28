@@ -111,7 +111,6 @@ module data_cache #(
             for (int i = 0; i < SETS; i++) begin
                 valid0[i] <= 1'b0;
                 valid1[i] <= 1'b0;
-                lru[i] <= 1'b0;
             end
         end else if (ReadDone) begin
             if (fillWay == 1'b0) begin
@@ -129,6 +128,17 @@ module data_cache #(
             else
                 data1[index] <= newline;
         end
+    end
+
+    // LRU: after an access the other way is the one to replace next
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            for (int i = 0; i < SETS; i++)
+                lru[i] <= 1'b0;
+        end else if (ReadDone)
+            lru[index] <= !fillWay; // just filled so the other way is older
+        else if ((MemRead || MemWrite) && hit)
+            lru[index] <= hit0; // hit way 0 so way 1 goes next
     end
 
     // placeholders until later
