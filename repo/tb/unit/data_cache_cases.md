@@ -11,8 +11,8 @@ Memory before each test (little-endian, byte 0 is the lowest):
 
 | # | Case | Do | Expect |
 |---|---|---|---|
-| 1 | Reset empties the cache | reset, then lw 0x10000 | miss = 1, MemBusy = 1 |
-| 2 | Miss asks for the line start | lw 0x1010C | missAddr = 0x10100 |
+| 1 | Reset empties the cache | reset, then lw 0x10000 | ReadReq = 1, MemBusy = 1 |
+| 2 | Miss asks for the line start | lw 0x1010C | ReadAddr = 0x10100 |
 | 3 | Miss then fill, LATENCY 0 | lw 0x10000 | busy 1 cycle, then RD = 0x12345678 |
 | 4 | Miss then fill, LATENCY 6 | lw 0x10000 | busy 7 cycles, then RD = 0x12345678 |
 | 5 | Same line hits | after 3, lw 0x10004 | no miss, RD = 0x8000FFFE |
@@ -27,3 +27,6 @@ Memory before each test (little-endian, byte 0 is the lowest):
 | 14 | Idle | MemRead = 0, MemWrite = 0 | MemBusy = 0 |
 | 15 | LRU replaces the older way | lw 0x10000, lw 0x10400, lw 0x10000 again, then lw 0x10800 | 0x10800 replaces 0x10400, so 0x10000 still hits and 0x10400 misses |
 | 16 | Sequential words | lw 0x10000, 0x10004, 0x10008, 0x1000C | 1 miss, then 3 hits |
+| 17 | Store goes through to memory | after lw 0x10000: sw 0xDEADBEEF to 0x10000 | memory at 0x10000 = 0xDEADBEEF |
+| 18 | Store miss, no allocate | sb 0xAA to 0x10001 (not in the cache) | memory at 0x10000 = 0x1234AA78, the next lw 0x10000 still misses |
+| 19 | Store stalls, LATENCY 6 | sw 0x55 to 0x10000 | busy 6 cycles, until WriteDone |

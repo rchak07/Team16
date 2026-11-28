@@ -18,8 +18,8 @@ protected:
     // pretend main_mem
     std::map<uint32_t, uint32_t> mem;
     int latency = 0;
-    int wait = -1; // -1 when no miss is being handled
-    int busy = 0; // cycles the last load waited
+    int wait = -1; // -1 when no request is being handled
+    int busy = 0; // cycles the last load or store waited
 
     void initializeInputs() override
     {
@@ -49,51 +49,80 @@ protected:
         top->rst = 0;
     }
 
-    // one clock cycle, sends the line LATENCY cycles after the miss
-    void cycle()
+    // pretend main_mem answers: ReadDone with the line or WriteDone, LATENCY cycles after a request
+    void respond()
     {
         top->eval();
-        top->ReadDone = 0;
-        if (top->ReadReq)
+        if (top->ReadReq || top->WriteReq)
         {
             if (wait < 0)
-                wait = latency; // new miss, start counting
+                wait = latency; // new request, start counting
             if (wait == 0)
             {
-                top->ReadDone = 1;
-                for (int i = 0; i < 4; i++)
-                    top->ReadLine[i] = mem[top->ReadAddr + 4 * i];
+                if (top->ReadReq)
+                {
+                    top->ReadDone = 1;
+                    for (int i = 0; i < 4; i++)
+                        top->ReadLine[i] = mem[top->ReadAddr + 4 * i];
+                }
+                else
+                {
+                    top->WriteDone = 1;
+                    memWrite(top->WriteAddr, top->WriteData, top->WriteFunct3);
+                }
                 wait = -1; // done
             }
             else
                 wait--;
         }
-        runSimulation(1);
-        top->ReadDone = 0;
+        top->eval();
     }
 
-    // load: wait while MemBusy is 1, then return RD
+    // one clock edge then Done signals drop again
+    void tick()
+    {
+        runSimulation(1);
+        top->ReadDone = 0;
+        top->WriteDone = 0;
+    }
+
+    // sb, sh or sw into the pretend memory
+    void memWrite(uint32_t addr, uint32_t data, int funct3)
+    {
+        uint32_t word = addr & ~3u;
+        int shift = (addr & 3) * 8;
+        uint32_t mask = (funct3 == SB) ? 0xFF : (funct3 == SH) ? 0xFFFF : 0xFFFFFFFF;
+        mem[word] = (mem[word] & ~(mask << shift)) | ((data & mask) << shift);
+    }
+
+    // wait while MemBusy is 1, counting the cycles
+    void waitWhileBusy()
+    {
+        busy = 0;
+        respond();
+        while (top->MemBusy && busy < 100)
+        {
+            tick();
+            busy++;
+            respond();
+        }
+    }
+
+    // load: return RD once MemBusy drops
     uint32_t load(uint32_t addr, int funct3)
     {
         top->MemRead = 1;
         top->MemWrite = 0;
         top->A = addr;
         top->funct3 = funct3;
-        top->eval();
-        busy = 0;
-        while (top->MemBusy && busy < 100)
-        {
-            cycle();
-            busy++;
-            top->eval();
-        }
+        waitWhileBusy();
         uint32_t result = top->RD;
-        cycle();
+        tick();
         top->MemRead = 0;
         return result;
     }
 
-    // store: one cycle with MemWrite = 1
+    // store: finishes once memory says WriteDone
     void store(uint32_t addr, uint32_t data, int funct3)
     {
         top->MemRead = 0;
@@ -101,7 +130,8 @@ protected:
         top->A = addr;
         top->WD = data;
         top->funct3 = funct3;
-        cycle();
+        waitWhileBusy();
+        tick();
         top->MemWrite = 0;
     }
 };
@@ -237,4 +267,30 @@ TEST_F(DataCacheTestbench, SequentialWordsTest)
     EXPECT_EQ(busy, 0);
     load(0x1000C, LW);
     EXPECT_EQ(busy, 0);
+}
+
+// 17: a store hit also goes through to memory
+TEST_F(DataCacheTestbench, StoreWriteThroughTest)
+{
+    load(0x10000, LW);
+    store(0x10000, 0xDEADBEEF, SW);
+    EXPECT_EQ(mem[0x10000], 0xDEADBEEFu);
+}
+
+// 18: a store miss only writes memory, the line is not brought in
+TEST_F(DataCacheTestbench, StoreMissNoAllocateTest)
+{
+    store(0x10001, 0xAA, SB);
+    EXPECT_EQ(mem[0x10000], 0x1234AA78u);
+    EXPECT_EQ(load(0x10000, LW), 0x1234AA78u);
+    EXPECT_GT(busy, 0); // still a miss
+}
+
+// 19: LATENCY 6, a store stalls until WriteDone
+TEST_F(DataCacheTestbench, StoreStallTest)
+{
+    latency = 6;
+    store(0x10000, 0x55, SW);
+    EXPECT_EQ(busy, 6);
+    EXPECT_EQ(mem[0x10000], 0x55u);
 }
