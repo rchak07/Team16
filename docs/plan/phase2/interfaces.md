@@ -132,7 +132,28 @@ An instruction that was predicted taken but is not a taken jump or branch (a tab
 - No `MemRead` and no `MemWrite` → never busy.
 - `funct3` behaves exactly as in `data_mem`, so the cache and the reference give identical results.
 
-**`main_mem`** (C): the slow memory behind the cache. Parameter `LATENCY` (cycles per line fill). Loads `data.hex` at `0x10000`, as `data_mem` does today. Its port list towards the cache is agreed between C and D on Wed 25 Nov and added here.
+**`main_mem`** (C): the slow memory behind the cache. Parameter `LATENCY` (cycles per request). Loads `data.hex` at `0x10000`, as `data_mem` does today. The pipeline never sees it: only `data_cache` talks to it, for a **load miss** (fetch one 16-byte line) and for **every store** (write-through).
+
+Port names are taken from `data_cache.sv` on the `cache` branch. **Draft: to be confirmed by C + D.** Directions are from `main_mem`'s side; `data_cache` has the same ports with the directions reversed.
+
+| Port | Dir | Width | Notes |
+|---|---|---|---|
+| `clk`, `rst` | in | 1 | `rst` cancels any request in progress. It does not clear the memory |
+| `ReadReq` | in | 1 | the cache wants a line (load miss) |
+| `ReadAddr` | in | 32 | start of the line, bottom 4 bits 0 (a load from `0x104` asks for `0x100`) |
+| `ReadDone` | out | 1 | the line is ready. High for one cycle |
+| `ReadLine` | out | 128 | the 16 bytes. `ReadLine[8i+7:8i]` = byte `ReadAddr + i`, so byte 0 is in `[7:0]` (matches the cache's `line[offset*8 +: 8]`) |
+| `WriteReq` | in | 1 | the cache is sending a store through |
+| `WriteAddr` | in | 32 | byte address of the store, not rounded to a line |
+| `WriteData` | in | 32 | store data, low bytes used for `sb`/`sh` |
+| `WriteFunct3` | in | 3 | `000` sb · `001` sh · `010` sw, same as `data_mem`, so only the stored bytes change |
+| `WriteDone` | out | 1 | the store is in memory. High for one cycle |
+
+**Handshake (proposals, agree with D)**
+
+- **M1** `ReadReq` and `WriteReq` stay high until their `Done`, and `ReadAddr`/`WriteAddr`/`WriteData`/`WriteFunct3` stay steady meanwhile. `main_mem` counts from the first cycle it sees the request, and does not restart the count while the request stays high.
+- **M2** `Done` comes `LATENCY` cycles after that first cycle, from a register. `LATENCY = 0` behaves as 1 (`Done` the next cycle), so there is no combinational path from `Req` to `Done`.
+- **M3** At most one request at a time: the cache never raises `ReadReq` and `WriteReq` together.
 
 ## 6. Predictor ↔ pipeline (C, used by A and B)
 
