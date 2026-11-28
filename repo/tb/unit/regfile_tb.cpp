@@ -1,6 +1,6 @@
 /*
  *  Verifies the register file: synchronous write, asynchronous reads, all 31 writable registers,
- *  read-before-write in the same cycle, x0 hardwired to zero and a0 showing only x10. 
+ *  read-before-write in the same cycle, x0 hardwired to zero and a0 showing only x10 
  */
 
 #include "testbench.h"
@@ -212,6 +212,34 @@ TEST_F(RegfileTestbench, A0MatchesRD1Test)
 
     EXPECT_EQ(top->RD1, 0xFFFFEEEEu);
     EXPECT_EQ(top->a0, top->RD1);
+}
+
+// write-through also works on the second read port
+TEST_F(RegfileTestbench, WriteThroughRD2Test)
+{
+    top->A2 = 7;
+    top->A3 = 7;
+    top->WD3 = 0x55;
+    top->WE3 = 1;
+    top->eval();
+    EXPECT_EQ(top->RD2, 0x55u); // bypassed before the clock edge
+}
+
+// no bypass for x0 or when WE3 is 0
+TEST_F(RegfileTestbench, NoWriteThroughTest)
+{
+    top->A1 = 0;
+    top->A3 = 0;
+    top->WD3 = 0x99;
+    top->WE3 = 1;
+    top->eval();
+    EXPECT_EQ(top->RD1, 0u); // x0 always reads 0
+
+    top->A1 = 6;
+    top->A3 = 6;
+    top->WE3 = 0;
+    top->eval();
+    EXPECT_EQ(top->RD1, 0u); // not writing so still the old value
 }
 
 int main(int argc, char **argv)
