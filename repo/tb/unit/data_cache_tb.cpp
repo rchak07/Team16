@@ -86,13 +86,25 @@ protected:
         top->WriteDone = 0;
     }
 
-    // sb, sh or sw into the pretend memory
+    // sb, sh or sw into the pretend memory, one byte at a time like data_mem
     void memWrite(uint32_t addr, uint32_t data, int funct3)
     {
-        uint32_t word = addr & ~3u;
-        int shift = (addr & 3) * 8;
-        uint32_t mask = (funct3 == SB) ? 0xFF : (funct3 == SH) ? 0xFFFF : 0xFFFFFFFF;
-        mem[word] = (mem[word] & ~(mask << shift)) | ((data & mask) << shift);
+        setByte(addr, data & 0xFF);
+        if (funct3 == SH || funct3 == SW)
+            setByte(addr + 1, (data >> 8) & 0xFF);
+        if (funct3 == SW)
+        {
+            setByte(addr + 2, (data >> 16) & 0xFF);
+            setByte(addr + 3, (data >> 24) & 0xFF);
+        }
+    }
+
+    // change one byte inside its word: clear the old byte then put in the new one
+    void setByte(uint32_t addr, uint32_t value)
+    {
+        uint32_t word = addr - addr % 4;
+        int shift = 8 * (addr % 4);
+        mem[word] = (mem[word] & ~(0xFFu << shift)) | (value << shift);
     }
 
     // wait while MemBusy is 1, counting the cycles
