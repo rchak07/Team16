@@ -13,12 +13,11 @@ module data_cache #(
     output logic [31:0] RD,
     output logic MemBusy, // 1 while an access hasn't finished
 
-    // memory side (to refill controller)
-    output logic miss, // load missed, fetch the line
-    output logic [31:0] missAddr, // line address, bottom 4 bits 0
-    output logic fillWay, // which way the new line goes in
-    input logic fillEn,
-    input logic [127:0] fillLine,
+    // memory side (to main_mem)
+    output logic ReadReq, // load missed, fetch the line
+    output logic [31:0] ReadAddr, // line address, bottom 4 bits 0
+    input logic ReadDone,
+    input logic [127:0] ReadLine,
     output logic WriteReq, // write-through store
     output logic [31:0] WriteAddr,
     output logic [31:0] WriteData,
@@ -61,10 +60,11 @@ module data_cache #(
     assign hit = hit0 || hit1;
 
     // miss path: ask for the line, stall until it arrives
-    assign miss = MemRead && !hit;
-    assign missAddr = {A[31:4], 4'b0000}; // line address
-    assign MemBusy = miss || (WriteReq && !WriteDone);
+    assign ReadReq = MemRead && !hit;
+    assign ReadAddr = {A[31:4], 4'b0000}; // line address
+    assign MemBusy = ReadReq || (WriteReq && !WriteDone);
 
+    logic fillWay;
     // fill an empty way first, else the least recently used one
     assign fillWay = !valid0[index] ? 1'b0 : !valid1[index] ? 1'b1 : lru[index];
 
@@ -113,15 +113,15 @@ module data_cache #(
                 valid1[i] <= 1'b0;
                 lru[i] <= 1'b0;
             end
-        end else if (fillEn) begin
+        end else if (ReadDone) begin
             if (fillWay == 1'b0) begin
                 valid0[index] <= 1'b1;
                 tag0[index] <= tag;
-                data0[index] <= fillLine;
+                data0[index] <= ReadLine;
             end else begin
                 valid1[index] <= 1'b1;
                 tag1[index] <= tag;
-                data1[index] <= fillLine;
+                data1[index] <= ReadLine;
             end
         end else if (MemWrite && hit) begin
             if (hit0)

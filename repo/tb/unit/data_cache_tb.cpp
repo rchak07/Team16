@@ -15,11 +15,10 @@ const int SB = 0b000, SH = 0b001, SW = 0b010;
 class DataCacheTestbench : public Testbench
 {
 protected:
-    // pretend refill controller and main_mem
+    // pretend main_mem
     std::map<uint32_t, uint32_t> mem;
     int latency = 0;
     int wait = -1; // -1 when no miss is being handled
-    int lastFillWay = -1;
     int busy = 0; // cycles the last load waited
 
     void initializeInputs() override
@@ -32,11 +31,11 @@ protected:
         top->A = 0;
         top->WD = 0;
         top->funct3 = 0;
-        top->fillEn = 0;
+        top->ReadDone = 0;
         top->WriteDone = 0;
 
         for (int i = 0; i < 4; i++)
-            top->fillLine[i] = 0;
+            top->ReadLine[i] = 0;
 
         // memory from the case table
         mem[0x10000] = 0x12345678;
@@ -53,24 +52,23 @@ protected:
     void cycle()
     {
         top->eval();
-        top->fillEn = 0;
-        if (top->miss)
+        top->ReadDone = 0;
+        if (top->ReadReq)
         {
             if (wait < 0)
                 wait = latency; // new miss, start counting
             if (wait == 0)
             {
-                top->fillEn = 1;
+                top->ReadDone = 1;
                 for (int i = 0; i < 4; i++)
-                    top->fillLine[i] = mem[top->missAddr + 4 * i];
-                lastFillWay = top->fillWay;
+                    top->ReadLine[i] = mem[top->ReadAddr + 4 * i];
                 wait = -1; // done
             }
             else
                 wait--;
         }
         runSimulation(1);
-        top->fillEn = 0;
+        top->ReadDone = 0;
     }
 
     // load: wait while MemBusy is 1, then return RD
@@ -116,7 +114,7 @@ TEST_F(DataCacheTestbench, ResetEmptiesCacheTest)
     top->A = 0x10000;
     top->funct3 = LW;
     top->eval();
-    EXPECT_EQ(top->miss, 1);
+    EXPECT_EQ(top->ReadReq, 1);
     EXPECT_EQ(top->MemBusy, 1);
 }
 
@@ -127,7 +125,7 @@ TEST_F(DataCacheTestbench, MissAddrIsLineStartTest)
     top->A = 0x1010C;
     top->funct3 = LW;
     top->eval();
-    EXPECT_EQ(top->missAddr, 0x10100u);
+    EXPECT_EQ(top->ReadAddr, 0x10100u);
 }
 
 // 3: LATENCY 0, busy for 1 cycle then the word
@@ -169,13 +167,11 @@ TEST_F(DataCacheTestbench, LoadUpperHalfTest)
     EXPECT_EQ(load(0x10006, LHU), 0x00008000u);
 }
 
-// 10: two lines with the same index go into way 0 then way 1 and both stay
+// 10: two lines with the same index both stay, one in each way
 TEST_F(DataCacheTestbench, BothWaysTest)
 {
     load(0x10000, LW);
-    EXPECT_EQ(lastFillWay, 0);
     load(0x10400, LW);
-    EXPECT_EQ(lastFillWay, 1);
 
     EXPECT_EQ(load(0x10000, LW), 0x12345678u);
     EXPECT_EQ(busy, 0);
