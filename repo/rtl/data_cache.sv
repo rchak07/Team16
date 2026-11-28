@@ -141,10 +141,10 @@ module data_cache #(
             lru[index] <= hit0; // hit way 0 so way 1 goes next
     end
 
-    // placeholders until later
-    assign WriteReq    = 1'b0;
-    assign WriteAddr   = 32'b0;
-    assign WriteData   = 32'b0;
-    assign WriteFunct3 = 3'b0;
+    // every store also goes to main_mem (write-through)
+    assign WriteReq = MemWrite;
+    assign WriteAddr = A;
+    assign WriteData = WD;
+    assign WriteFunct3 = funct3;
 
 endmodule
